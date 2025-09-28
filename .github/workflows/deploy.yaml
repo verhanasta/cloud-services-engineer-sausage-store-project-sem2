@@ -93,12 +93,11 @@ jobs:
         - name: Update Chart Version
           id: versioning
           run: |
-            CURRENT_VERSION=$(yq e '.version' ./sausage-store-chart/Chart.yaml)
             echo "Current Chart Version: $CURRENT_VERSION"
+            CURRENT_VERSION=$(yq e '.version' ./sausage-store-chart/Chart.yaml)
             NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{$NF = $NF + 1; print}' OFS=.)
-            echo "New Chart Version to be used: $NEW_VERSION"
-            echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
             yq e -i ".version = \"$NEW_VERSION\"" ./sausage-store-chart/Chart.yaml
+            echo "chart_version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
         - name: Push Helm Chart
           run: |
@@ -141,7 +140,7 @@ jobs:
         - name: Deploy to Cluster.
           run: |
             helm upgrade --install sausage-store \
-              chartmuseum/anasteyshaverh-sausage-store \
+              chartmuseum/sausage-store \
               --version ${{ needs.add_helm_chart_to_nexus.outputs.chart_version }} \
               --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
               --set-string backend.image_tag="latest" \
