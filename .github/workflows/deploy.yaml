@@ -94,10 +94,11 @@ jobs:
           id: versioning
           run: |
             echo "Current Chart Version: $CURRENT_VERSION"
-            CURRENT_VERSION=$(yq e '.version' ./sausage-store-chart/Chart.yaml)
             NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{$NF = $NF + 1; print}' OFS=.)
-            yq e -i ".version = \"$NEW_VERSION\"" ./sausage-store-chart/Chart.yaml
-            echo "chart_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            CLEAN_VERSION=$(echo "$NEW_VERSION" | tr -d '\n\r')
+            echo "New Chart Version to be used: $CLEAN_VERSION"
+            echo "NEW_VERSION=$CLEAN_VERSION" >> $GITHUB_OUTPUT
+            yq e -i ".version = \"$CLEAN_VERSION\"" ./sausage-store-chart/Chart.yaml
 
         - name: Push Helm Chart
           run: |
@@ -137,11 +138,31 @@ jobs:
               --password "${{ env.NEXUS_HELM_REPO_PASSWORD }}"
             helm repo update
 
+#        - name: Deploy to Cluster.
+#          run: |
+#            helm upgrade --install sausage-store \
+#              chartmuseum/sausage-store \
+#              --version ${{ needs.add_helm_chart_to_nexus.outputs.chart_version }} \
+#              --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
+#              --set-string backend.image_tag="latest" \
+#              --set-string frontend.image_tag="latest" \
+#              --set-string backend-report.image_tag="latest"
+        - name: Debug Received Chart Version
+          run: |
+            RECEIVED_VERSION="${{ needs.add_helm_chart_to_nexus.outputs.chart_version }}"
+            echo "Received Chart Version from previous job: ->${RECEIVED_VERSION}<-"
+            if [ -z "$RECEIVED_VERSION" ]; then
+              echo "::error::Chart version is EMPTY. Cannot proceed with deployment."
+              exit 1
+            fi
+
         - name: Deploy to Cluster.
           run: |
+            CHART_VERSION="${{ needs.add_helm_chart_to_nexus.outputs.chart_version }}"
+            echo "Deploying chart version $CHART_VERSION"
             helm upgrade --install sausage-store \
-              chartmuseum/sausage-store \
-              --version ${{ needs.add_helm_chart_to_nexus.outputs.chart_version }} \
+            chartmuseum/sausage-store \
+              --version "$CHART_VERSION" \
               --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
               --set-string backend.image_tag="latest" \
               --set-string frontend.image_tag="latest" \
