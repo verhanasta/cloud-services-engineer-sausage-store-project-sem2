@@ -113,14 +113,15 @@ backend-report:
 ### DB положите в Secret, PORT в ConfigMap
 ### Опишите HPA для backend-report
 
-infra:
 ### Опишите необходимые переменные для развертывания PostgresQL в кластере Kubernetes
-  postgresql:
-    env:
-      POSTGRESQL_INITDB_ROOT_USERNAME: pg_root
-      POSTGRESQL_INITDB_ROOT_PASSWORD: test_pg
-      POSTGRESQL_INITDB_ROOT_DB: sausage_store
+postgres:
+  env:
+    POSTGRESQL_INITDB_ROOT_USERNAME: pg_root
+    POSTGRESQL_INITDB_ROOT_PASSWORD: test_pg
+    POSTGRESQL_INITDB_ROOT_DB: sausage_store
     containerPort: 5432
+
+infra:
   mongodb:
     env:
       MONGO_INITDB_ROOT_USERNAME: mongo_root
