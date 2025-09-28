@@ -81,6 +81,7 @@ backend:
   ### Опишите VPA для бэкенда
 
 backend-report:
+  revisionHistoryLimit: 10
   replicas: 1
   strategy:
     type: Recreate
@@ -92,6 +93,10 @@ backend-report:
     cpu: 100m
   limits:
     cpu: 1
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 5
+    averageUtilization: 75
   livenessProbe:
     httpGet:
       path: /health
@@ -103,6 +108,7 @@ backend-report:
     minReplicas: 1
     maxReplicas: 3
     cpuUtilizationPercentage: 60
+    averageUtilization: 75
 ### Опишите значения для backend-report
 ### Приложение должно использовать стратегию Recreate
 ### Приложение использует переменную PORT - порт, на котором оно запустится и DB - Uri-подключение к mongodb. 

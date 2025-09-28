@@ -90,6 +90,10 @@ backend-report:
     db: "mongodb://mongo_root:test_mongo@mongodb:27017/sausage-store?authSource=admin"
   request:
     cpu: 100m
+  autoscaling:
+    minReplicas: 1
+    maxReplicas: 5
+    averageUtilization: 75
   limits:
     cpu: 1
   livenessProbe:

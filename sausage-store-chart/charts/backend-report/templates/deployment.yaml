@@ -17,9 +17,9 @@ metadata:
     {{ $k }}: "{{ $v }}"
     {{- end }}
 spec:
-  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
-  replicas: {{ .Values.replicas }}
-  strategy: {{- toYaml .Values.strategy | nindent 4 }}
+  revisionHistoryLimit: {{ .Values.backend-report.revisionHistoryLimit }}
+  replicas: {{ .Values.backend-report.replicas }}
+  strategy: {{- toYaml .Values.backend-report.strategy | nindent 4 }}
   selector:
     matchLabels:
       app: {{ printf "%s-%s" .Release.Name .Chart.Name }}
@@ -43,11 +43,11 @@ spec:
                 secretKeyRef:
                   name: {{ printf "%s-%s-secret" .Release.Name .Chart.Name }}
                   key: env
-          resources: {{- toYaml .Values.resources | nindent 12 }}
+          resources: {{- toYaml .Values.backend-report.resources | nindent 12 }}
           ports:
             - name: {{ .Chart.Name }}
-              containerPort: {{ .Values.containerPort }}
-          livenessProbe: {{- toYaml .Values.livenessProbe | nindent 12 }}
+              containerPort: {{ .Values.backend-report.containerPort }}
+          livenessProbe: {{- toYaml .Values.backend-report.livenessProbe | nindent 12 }}
       volumes:
         - name: {{ printf "%s-%s-conf" .Release.Name .Chart.Name }}
           configMap:
@@ -79,12 +79,12 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ printf "%s-%s" .Release.Name .Chart.Name }}
-  minReplicas: {{ .Values.hpa.minReplicas }}
-  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  minReplicas: {{ .Values.backend-report.hpa.minReplicas }}
+  maxReplicas: {{ .Values.backend-report.hpa.maxReplicas }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.hpa.averageUtilization }}
+          averageUtilization: {{ .Values.backend-report.hpa.averageUtilization }}
