@@ -104,7 +104,7 @@ jobs:
             mkdir -p ./packaged-chart
             helm package ./sausage-store-chart -d ./packaged-chart
             helm cm-push ./packaged-chart/sausage-store-*.tgz "${{ env.NEXUS_HELM_REPO }}" \
-              --context-path="/repository/muxbyte93-sausage-store-project-sem2" \
+              --context-path="/repository/anasteyshaverh-sausage-store" \
               --username="${{ env.NEXUS_HELM_REPO_USER }}" \
               --password="${{ env.NEXUS_HELM_REPO_PASSWORD }}"
       #### Опишите необходимые шаги
