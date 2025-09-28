@@ -36,8 +36,8 @@ backend:
     scrape: "true"
   env:
     postgresUri: jdbc:postgresql://postgresql:5432/sausage-store
-    postgresUser: pg_root
-    postgresPassword: test_pg
+    postgresUser: root
+    postgresPassword: test
     reportPath: /logs/reports
     logPath: /logs
   service:
@@ -116,8 +116,8 @@ backend-report:
 ### Опишите необходимые переменные для развертывания PostgresQL в кластере Kubernetes
 postgres:
   env:
-    POSTGRESQL_INITDB_ROOT_USERNAME: pg_root
-    POSTGRESQL_INITDB_ROOT_PASSWORD: test_pg
+    POSTGRESQL_INITDB_ROOT_USERNAME: root
+    POSTGRESQL_INITDB_ROOT_PASSWORD: test
     POSTGRESQL_INITDB_ROOT_DB: sausage_store
     containerPort: "5432"
 

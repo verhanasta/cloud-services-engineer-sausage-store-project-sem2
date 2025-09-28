@@ -3,9 +3,9 @@ annotations:
   port: "8080"
   scrape: "true"
 env:
-  postgresUri: jdbc:postgresql://postgresql:5432/sausage-store
-  postgresUser: pg_root
-  postgresPassword: test_pg
+  postgresUri: jdbc:postgresql://postgres:5432/sausage-store
+  postgresUser: root
+  postgresPassword: test
   reportPath: /logs/reports
   logPath: /logs
 service:
