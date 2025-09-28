@@ -142,6 +142,6 @@ jobs:
               chartmuseum/sausage-store \
               --version ${{ needs.add_helm_chart_to_nexus.outputs.chart_version }} \
               --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
-              --set-string backend.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}" \
-              --set-string frontend.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}" \
-              --set-string backend-report.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}"
+              --set-string backend.image_tag="latest" \
+              --set-string frontend.image_tag="latest" \
+              --set-string backend-report.image_tag="latest"
