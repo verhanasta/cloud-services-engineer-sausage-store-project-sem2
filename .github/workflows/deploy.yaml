@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  NEXUS_HELM_REPO: ${{ secrets.NEXUS_HELM_REPO }}
+  #NEXUS_HELM_REPO: ${{ secrets.NEXUS_HELM_REPO }}
   NEXUS_HELM_REPO_USER: ${{ secrets.NEXUS_HELM_REPO_USER }}
   NEXUS_HELM_REPO_PASSWORD: ${{ secrets.NEXUS_HELM_REPO_PASSWORD }}
   SAUSAGE_STORE_NAMESPACE: r-devops-magistracy-project-2sem-1367284807
