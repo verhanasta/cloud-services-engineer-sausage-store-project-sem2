@@ -144,4 +144,4 @@ jobs:
               --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
               --set-string backend.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}" \
               --set-string frontend.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}" \
-              --set-string backend-report.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}" \
+              --set-string backend-report.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}"
