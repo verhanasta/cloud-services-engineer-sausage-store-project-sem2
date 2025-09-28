@@ -118,7 +118,7 @@ postgres:
   env:
     POSTGRESQL_INITDB_ROOT_USERNAME: root
     POSTGRESQL_INITDB_ROOT_PASSWORD: test
-    POSTGRESQL_INITDB_ROOT_DB: sausage_store
+    POSTGRESQL_INITDB_ROOT_DB: sausage-store
     containerPort: "5432"
 
 infra:
