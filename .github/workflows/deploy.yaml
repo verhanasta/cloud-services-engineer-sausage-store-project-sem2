@@ -13,157 +13,128 @@ env:
   KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
 
 jobs:
-  # Сборка и пуш образов в докерхаб:
   build_and_push_to_docker_hub:
-      name: Push Docker image to DockerHub
-      runs-on: ubuntu-latest
-      steps:
-        - name: Check out the repo
-          # Получение исходного кода из репозитория:
-          uses: actions/checkout@v3
-        - name: Set up Docker Buildx
-          # Установка сборщика контейнеров Docker:
-          uses: docker/setup-buildx-action@v2
-        - name: Login to Docker
-          # Авторизация на Docker Hub:
-          uses: docker/login-action@v2
-          # При помощи with передаём в action параметры username и password:
-          with:
-            username: ${{ secrets.DOCKER_USER }}
-            password: ${{ secrets.DOCKER_PASSWORD }}
-            # Хорошо ли держать логин и пароль прямо в коде workflow?
-            # Нет, это нехорошо. Хранить пароль надо в Secrets.
-        - name: Push Backend to DockerHub
-          # Одновременный билд и пуш образа в Docker Hub:
-          uses: docker/build-push-action@v4
-          with:
-            # Параметр context: ./backend/ указывает, что нужный Dockerfile
-            # находится в ./backend/
-            context: ./backend/
-            # Параметр push: true указывает, что образ нужно не только собрать,
-            # но и отправить на Docker Hub:
-            push: true
-            # В параметре tags задаётся название и тег для образа.
-            # Для каждого пересобранного образа
-            # устанавливаем тег latest, чтобы потом
-            # на сервере и в docker-compose.yml не указывать версию образа:
-            tags: verhanasta/sausage-backend:latest
-            build-args: |
-              VERSION=${{ github.sha }}
-        - name: Push Frontend to DockerHub
-          uses: docker/build-push-action@v4
-          with:
-            context: ./frontend/
-            push: true
-            tags: verhanasta/sausage-frontend:latest
-        - name: Push Backend-report to DockerHub
-          uses: docker/build-push-action@v4
-          with:
-            context: ./backend-report/
-            push: true
-            tags: verhanasta/sausage-backend-report:latest
-  # Упаковываем helm-чарт и пушим его в Nexus
+    name: Push Docker image to DockerHub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Login to Docker
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Push Backend to DockerHub
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend/
+          push: true
+          tags: verhanasta/sausage-backend:latest
+          build-args: |
+            VERSION=${{ github.sha }}
+      - name: Push Frontend to DockerHub
+        uses: docker/build-push-action@v4
+        with:
+          context: ./frontend/
+          push: true
+          tags: verhanasta/sausage-frontend:latest
+      - name: Push Backend-report to DockerHub
+        uses: docker/build-push-action@v4
+        with:
+          context: ./backend-report/
+          push: true
+          tags: verhanasta/sausage-backend-report:latest
+
   add_helm_chart_to_nexus:
-      name: Add Helm Chart To Nexus
-      runs-on: ubuntu-latest
-      needs: build_and_push_to_docker_hub
+    name: Add Helm Chart To Nexus
+    runs-on: ubuntu-latest
+    needs: build_and_push_to_docker_hub
 
-      steps:
-        - name: Check out the repo
-          # Получение исходного кода из репозитория:
-          uses: actions/checkout@v3
+    outputs:
+      chart_version: ${{ steps.set_version.outputs.CHART_VERSION }}
 
-        - name: Install Helm
-          uses: azure/setup-helm@v1
-          with:
-            version: v3.14.2
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
 
-        - name: Install helm-push plugin
-          run: |
-            helm plugin uninstall push || true
-            helm plugin install https://github.com/chartmuseum/helm-push.git
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.14.2
 
-        - name: Configure Helm Repository
-          run: |
-            helm repo add chartmuseum "${{ env.NEXUS_HELM_REPO }}" \
-              --username="${{ env.NEXUS_HELM_REPO_USER }}" \
-              --password="${{ env.NEXUS_HELM_REPO_PASSWORD }}"
-            helm repo update
+      - name: Install helm-push plugin
+        run: |
+          helm plugin uninstall push || true
+          helm plugin install https://github.com/chartmuseum/helm-push.git
 
-        - name: Update Chart Version
-          id: versioning
-          run: |
-            echo "Current Chart Version: $CURRENT_VERSION"
-            NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{$NF = $NF + 1; print}' OFS=.)
-            CLEAN_VERSION=$(echo "$NEW_VERSION" | tr -d '\n\r')
-            echo "New Chart Version to be used: $CLEAN_VERSION"
-            echo "NEW_VERSION=$CLEAN_VERSION" >> $GITHUB_OUTPUT
-            yq e -i ".version = \"$CLEAN_VERSION\"" ./sausage-store-chart/Chart.yaml
+      - name: Configure Helm Repository
+        run: |
+          helm repo add chartmuseum "${{ env.NEXUS_HELM_REPO }}" \
+            --username="${{ env.NEXUS_HELM_REPO_USER }}" \
+            --password="${{ env.NEXUS_HELM_REPO_PASSWORD }}"
+          helm repo update
 
-        - name: Push Helm Chart
-          run: |
-            helm dependency update ./sausage-store-chart
-            mkdir -p ./packaged-chart
-            helm package ./sausage-store-chart -d ./packaged-chart
-            helm cm-push ./packaged-chart/sausage-store-*.tgz "${{ env.NEXUS_HELM_REPO }}" \
-              --context-path="/repository/anasteyshaverh-sausage-store" \
-              --username="${{ env.NEXUS_HELM_REPO_USER }}" \
-              --password="${{ env.NEXUS_HELM_REPO_PASSWORD }}"
-      #### Опишите необходимые шаги
+      - name: Set Chart Version to Commit SHA
+        id: set_version
+        run: |
+          BASE_VERSION="0.1.0"
+          
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-8)
+          
+          CHART_VERSION="$BASE_VERSION-git.$SHORT_SHA"
+          echo "Setting SemVer-compliant chart version: $CHART_VERSION"
+          
+          yq e -i ".version = \"$CHART_VERSION\"" ./sausage-store-chart/Chart.yaml
+          
+          echo "CHART_VERSION=$CHART_VERSION" >> "$GITHUB_OUTPUT" 
 
-  # Деплоим приложения в кластер Kubernetes с помощью helm-чарт
+      - name: Push Helm Chart
+        run: |
+          helm dependency update ./sausage-store-chart
+          mkdir -p ./packaged-chart
+          # Упаковываем чарт, который теперь имеет SemVer-совместимую версию
+          helm package ./sausage-store-chart -d ./packaged-chart
+          helm cm-push ./packaged-chart/sausage-store-*.tgz "${{ env.NEXUS_HELM_REPO }}" \
+            --context-path="/repository/anasteyshaverh-sausage-store" \
+            --username="${{ env.NEXUS_HELM_REPO_USER }}" \
+            --password="${{ env.NEXUS_HELM_REPO_PASSWORD }}"
+
   deploy_helm_chart_to_kubernetes:
-      name: Deploy Helm Chart To Kubernetes
-      runs-on: ubuntu-latest
-      needs: add_helm_chart_to_nexus
+    name: Deploy Helm Chart To Kubernetes
+    runs-on: ubuntu-latest
+    needs: add_helm_chart_to_nexus
 
-      steps:
-        - name: Install Helm
-          uses: azure/setup-helm@v1
-          with:
-            version: v3.14.2
+    steps:
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.14.2
 
-        - name: Configure Kubernetes Access
-          env:
-            KUBECONFIG_BASE64: ${{ secrets.KUBE_CONFIG }}
-          run: |
-            mkdir -p ~/.kube
-            echo "$KUBECONFIG_BASE64" | base64 -d > ~/.kube/config
-            chmod 600 ~/.kube/config
+      - name: Configure Kubernetes Access
+        env:
+          KUBECONFIG_BASE64: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_BASE64" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
 
-        - name: Add Helm Repository
-          run: |
-            helm repo add chartmuseum "${{ env.NEXUS_HELM_REPO }}" \
-              --username "${{ env.NEXUS_HELM_REPO_USER }}" \
-              --password "${{ env.NEXUS_HELM_REPO_PASSWORD }}"
-            helm repo update
+      - name: Add Helm Repository
+        run: |
+          helm repo add chartmuseum "${{ env.NEXUS_HELM_REPO }}" \
+            --username "${{ env.NEXUS_HELM_REPO_USER }}" \
+            --password "${{ env.NEXUS_HELM_REPO_PASSWORD }}"
+          helm repo update
 
-#        - name: Deploy to Cluster.
-#          run: |
-#            helm upgrade --install sausage-store \
-#              chartmuseum/sausage-store \
-#              --version ${{ needs.add_helm_chart_to_nexus.outputs.chart_version }} \
-#              --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
-#              --set-string backend.image_tag="latest" \
-#              --set-string frontend.image_tag="latest" \
-#              --set-string backend-report.image_tag="latest"
-        - name: Debug Received Chart Version
-          run: |
-            RECEIVED_VERSION="${{ needs.add_helm_chart_to_nexus.outputs.chart_version }}"
-            echo "Received Chart Version from previous job: ->${RECEIVED_VERSION}<-"
-            if [ -z "$RECEIVED_VERSION" ]; then
-              echo "::error::Chart version is EMPTY. Cannot proceed with deployment."
-              exit 1
-            fi
-
-        - name: Deploy to Cluster.
-          run: |
-            CHART_VERSION="${{ needs.add_helm_chart_to_nexus.outputs.chart_version }}"
-            echo "Deploying chart version $CHART_VERSION"
-            helm upgrade --install sausage-store \
+      - name: Deploy to Cluster.
+        run: |
+          CHART_VERSION="${{ needs.add_helm_chart_to_nexus.outputs.chart_version }}"
+          echo "Deploying chart version $CHART_VERSION"
+          helm upgrade --install sausage-store \
             chartmuseum/sausage-store \
-              --version "$CHART_VERSION" \
-              --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
-              --set-string backend.image_tag="latest" \
-              --set-string frontend.image_tag="latest" \
-              --set-string backend-report.image_tag="latest"
+            --version "$CHART_VERSION" \
+            --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
+            --set-string backend.image_tag="latest" \
+            --set-string frontend.image_tag="latest" \
+            --set-string backend-report.image_tag="latest"
