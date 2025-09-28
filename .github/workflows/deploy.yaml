@@ -139,7 +139,7 @@ jobs:
         - name: Deploy to Cluster.
           run: |
             helm upgrade --install sausage-store \
-              chartmuseum/sausage-store \
+              chartmuseum/anasteyshaverh-sausage-store \
               --version ${{ needs.add_helm_chart_to_nexus.outputs.chart_version }} \
               --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
               --set-string backend.image_tag="latest" \
