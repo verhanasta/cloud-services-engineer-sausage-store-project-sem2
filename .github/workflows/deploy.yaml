@@ -9,9 +9,8 @@ env:
   NEXUS_HELM_REPO: ${{ secrets.NEXUS_HELM_REPO }}
   NEXUS_HELM_REPO_USER: ${{ secrets.NEXUS_HELM_REPO_USER }}
   NEXUS_HELM_REPO_PASSWORD: ${{ secrets.NEXUS_HELM_REPO_PASSWORD }}
-  SAUSAGE_STORE_NAMESPACE: YOUR_NAMESPACE
+  SAUSAGE_STORE_NAMESPACE: r-devops-magistracy-project-2sem-1367284807
   KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
-  VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
 
 jobs:
   # Сборка и пуш образов в докерхаб:
@@ -48,7 +47,7 @@ jobs:
             # Для каждого пересобранного образа 
             # устанавливаем тег latest, чтобы потом
             # на сервере и в docker-compose.yml не указывать версию образа:
-            tags: YOUR_DOCKERHUB/sausage-backend:latest
+            tags: verhanasta/sausage-backend:latest
             build-args: |
               VERSION=${{ github.sha }}
         - name: Push Frontend to DockerHub
@@ -56,13 +55,13 @@ jobs:
           with:
             context: ./frontend/
             push: true
-            tags: YOUR_DOCKERHUB/sausage-frontend:latest
+            tags: verhanasta/sausage-frontend:latest
         - name: Push Backend-report to DockerHub
           uses: docker/build-push-action@v4
           with:
             context: ./backend-report/
             push: true
-            tags: YOUR_DOCKERHUB/sausage-backend-report:latest
+            tags: verhanasta/sausage-backend-report:latest
   # Упаковываем helm-чарт и пушим его в Nexus
   add_helm_chart_to_nexus:
       name: Add Helm Chart To Nexus
@@ -70,6 +69,44 @@ jobs:
       needs: build_and_push_to_docker_hub
 
       steps:
+        - name: Check out the repo
+          # Получение исходного кода из репозитория:
+          uses: actions/checkout@v3
+
+        - name: Install Helm
+          uses: azure/setup-helm@v1
+          with:
+            version: v3.14.2
+
+        - name: Install helm-push plugin
+          run: |
+            helm plugin uninstall push || true
+            helm plugin install https://github.com/chartmuseum/helm-push.git
+
+        - name: Configure Helm Repository
+          run: |
+            helm repo add chartmuseum "${{ env.NEXUS_HELM_REPO }}" \
+              --username="${{ env.NEXUS_HELM_REPO_USER }}" \
+              --password="${{ env.NEXUS_HELM_REPO_PASSWORD }}"
+            helm repo update
+
+        - name: Update Chart Version
+          id: versioning
+          run: |
+            CURRENT_VERSION=$(yq e '.version' ./sausage-store-chart/Chart.yaml)
+            NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$NF = $NF + 1; print}' OFS=.)
+            echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+            yq e -i ".version = \"$NEW_VERSION\"" ./sausage-store-chart/Chart.yaml
+
+        - name: Push Helm Chart
+          run: |
+            helm dependency update ./sausage-store-chart
+            mkdir -p ./packaged-chart
+            helm package ./sausage-store-chart -d ./packaged-chart
+            helm cm-push ./packaged-chart/sausage-store-*.tgz "${{ env.NEXUS_HELM_REPO }}" \
+              --context-path="/repository/muxbyte93-sausage-store-project-sem2" \
+              --username="${{ env.NEXUS_HELM_REPO_USER }}" \
+              --password="${{ env.NEXUS_HELM_REPO_PASSWORD }}"
       #### Опишите необходимые шаги
 
   # Деплоим приложения в кластер Kubernetes с помощью helm-чарт
@@ -79,4 +116,32 @@ jobs:
       needs: add_helm_chart_to_nexus
 
       steps:
-      #### Опишите необходимые шаги
+        - name: Install Helm
+          uses: azure/setup-helm@v1
+          with:
+            version: v3.14.2
+
+        - name: Configure Kubernetes Access
+          env:
+            KUBECONFIG_BASE64: ${{ secrets.KUBE_CONFIG }}
+          run: |
+            mkdir -p ~/.kube
+            echo "$KUBECONFIG_BASE64" | base64 -d > ~/.kube/config
+            chmod 600 ~/.kube/config
+
+        - name: Add Helm Repository
+          run: |
+            helm repo add chartmuseum "${{ env.NEXUS_HELM_REPO }}" \
+              --username "${{ env.NEXUS_HELM_REPO_USER }}" \
+              --password "${{ env.NEXUS_HELM_REPO_PASSWORD }}"
+            helm repo update
+
+        - name: Deploy to Cluster.
+          run: |
+            helm upgrade --install sausage-store \
+              chartmuseum/sausage-store \
+              --version ${{ needs.add_helm_chart_to_nexus.outputs.chart_version }} \
+              --namespace ${{ env.SAUSAGE_STORE_NAMESPACE }} \
+              --set-string backend.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}" \
+              --set-string frontend.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}" \
+              --set-string backend-report.image_tag="${{ needs.add_helm_chart_to_nexus.outputs.date }}-${{ github.sha }}" \
