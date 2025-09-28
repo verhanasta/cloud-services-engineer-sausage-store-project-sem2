@@ -13,7 +13,7 @@ env:
   KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
 
 jobs:
-  # Сборка и пуш образов в докерхаб:
+  # Сборка и пуш образов в докерхаб/:
   build_and_push_to_docker_hub:
       name: Push Docker image to DockerHub
       runs-on: ubuntu-latest
