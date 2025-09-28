@@ -1,0 +1,90 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "%s-%s" .Release.Name .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- $l := dict
+        "app.kubernetes.io/name"        .Chart.Name
+        "app.kubernetes.io/instance"    .Release.Name
+        "app.kubernetes.io/version"     .Chart.AppVersion
+        "app.kubernetes.io/managed-by"  .Release.Service
+        "helm.sh/chart"                 (printf "%s-%s" .Chart.Name .Chart.Version)
+        "app.kubernetes.io/component"   .Chart.Name
+        "app.kubernetes.io/part-of"     .Release.Name }}
+    {{- range $k, $v := $l }}
+    {{ $k }}: "{{ $v }}"
+    {{- end }}
+spec:
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  replicas: {{ .Values.replicas }}
+  strategy: {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      app: {{ printf "%s-%s" .Release.Name .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ printf "%s-%s" .Release.Name .Chart.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image }}:{{ .Values.image_tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ printf "%s-%s-conf" .Release.Name .Chart.Name }}
+                  key: PORT
+            - name: DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-%s-secret" .Release.Name .Chart.Name }}
+                  key: env
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          ports:
+            - name: {{ .Chart.Name }}
+              containerPort: {{ .Values.containerPort }}
+          livenessProbe: {{- toYaml .Values.livenessProbe | nindent 12 }}
+      volumes:
+        - name: {{ printf "%s-%s-conf" .Release.Name .Chart.Name }}
+          configMap:
+            name: {{ printf "%s-%s-conf" .Release.Name .Chart.Name }}
+            items:
+              - key: PORT
+                path: PORT
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ printf "%s-%s-secret" .Release.Name .Chart.Name }}
+data:
+  env: bW9uZ29kYjovL3JlcG9ydHM6cmVwb3J0c3Bhc3N3b3JkQG1vbmdvZGI6MjcwMTcvc2F1c2FnZS1zdG9yZT9hdXRoU291cmNlPWFkbWlu
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-%s-conf" .Release.Name .Chart.Name }}
+data:
+  PORT: "8080"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ printf "%s-%s-hpa" .Release.Name .Chart.Name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ printf "%s-%s" .Release.Name .Chart.Name }}
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.averageUtilization }}
