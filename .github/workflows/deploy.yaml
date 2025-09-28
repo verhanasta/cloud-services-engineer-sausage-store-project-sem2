@@ -94,7 +94,9 @@ jobs:
           id: versioning
           run: |
             CURRENT_VERSION=$(yq e '.version' ./sausage-store-chart/Chart.yaml)
-            NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$NF = $NF + 1; print}' OFS=.)
+            echo "Current Chart Version: $CURRENT_VERSION"
+            NEW_VERSION=$(echo "$CURRENT_VERSION" | awk -F. '{$NF = $NF + 1; print}' OFS=.)
+            echo "New Chart Version to be used: $NEW_VERSION"
             echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
             yq e -i ".version = \"$NEW_VERSION\"" ./sausage-store-chart/Chart.yaml
 
