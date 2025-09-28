@@ -119,11 +119,11 @@ postgres:
     POSTGRESQL_INITDB_ROOT_USERNAME: pg_root
     POSTGRESQL_INITDB_ROOT_PASSWORD: test_pg
     POSTGRESQL_INITDB_ROOT_DB: sausage_store
-    containerPort: 5432
+    containerPort: "5432"
 
 infra:
   mongodb:
     env:
       MONGO_INITDB_ROOT_USERNAME: mongo_root
       MONGO_INITDB_ROOT_PASSWORD: test_mongo
-    containerPort: 27017
+    containerPort: "27017"
