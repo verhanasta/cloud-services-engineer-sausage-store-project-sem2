@@ -50,8 +50,8 @@ metadata:
     app: postgres
 spec:
   ports:
-    - port: {{ .Values.postgres.containerPort }}
-      targetPort: {{ .Values.postgres.containerPort }}
+    - port: {{ .Values.infra.postgresql.containerPort }}
+      targetPort: {{ .Values.infra.postgresql.containerPort }}
   selector:
     app: postgres
   clusterIP: None
