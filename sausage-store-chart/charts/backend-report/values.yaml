@@ -92,10 +92,6 @@ backend-report:
     cpu: 100m
   limits:
     cpu: 1
-  autoscaling:
-    minReplicas: 1
-    maxReplicas: 5
-    averageUtilization: 75
   livenessProbe:
     httpGet:
       path: /health
