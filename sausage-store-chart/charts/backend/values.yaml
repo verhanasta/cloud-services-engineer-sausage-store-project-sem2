@@ -1,125 +1,48 @@
-global:
-  imagePullPolicy: Always
-  ###vault:
-  ###  host: ip
-  ###  name: vault
-  ###  vaultToken: someToken
-
-
-frontend:
-### В чарте frontend отсутствуют некоторые важные файлы. Поймите какие и опишите их.
-  replicas: 1
-  revisionHistoryLimit: 15
-  strategy:
-    type: Recreate
-  service:
-    port: 80
-  ingress:
-    host: front-verhanasta.2sem.students-projects.ru # Корректный домен будет указан в задании
-    path: /
-    pathType: Prefix
-  containerPort: 80
-  image: verhanasta/sausage-frontend:latest
-  resources:
-    requests:
-      memory: "128Mi"
-      cpu: "100m"
-    limits:
-      memory: "128Mi"
-      cpu: "1"
-  nginxConf: nginx.conf
-
-backend:
-  annotations:
-    path: /actuator/prometheus
-    port: "8080"
-    scrape: "true"
-  env:
-    postgresUri: jdbc:postgresql://postgresql:5432/sausage-store
-    postgresUser: pg_root
-    postgresPassword: test_pg
-    reportPath: /logs/reports
-    logPath: /logs
-  service:
-    port: 8080
-  revisionHistoryLimit: 15
-  replicas: 1
-  strategy:
-  ### Опишите стратегию RollingUpdate для бэкенда
-  image: verhanasta/sausage-backend:latest
-  imagePullPolicy: Always
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "100m"
-    limits:
-      memory: "512Mi"
-      cpu: "1"
-  containerPort: 8080
-  livenessProbe:
-    httpGet:
-      path: /actuator/health
-      port: 8080
-    initialDelaySeconds: 60
-    periodSeconds: 15
-    timeoutSeconds: 5
-    failureThreshold: 3
-  ### Опишите LivenessProbe для бэкенда
-  vpa:
-    enabled: true
-    updatePolicy:
-      updateMode: "Off"
-    resourcePolicy:
-      containerPolicies:
-        - containerName: "*"
-          minAllowed:
-            cpu: "150m"
-            memory: "256Mi"
-          maxAllowed:
-            cpu: "1"
-            memory: "512Mi"
-  ### Опишите VPA для бэкенда
-
-backend-report:
-  replicas: 1
-  strategy:
-    type: Recreate
-  containerPort: 8080
-  env:
-    port: "8080"
-    db: "mongodb://mongo_root:test_mongo@mongodb:27017/sausage-store?authSource=admin"
-  request:
-    cpu: 100m
+annotations:
+  path: /actuator/prometheus
+  port: "8080"
+  scrape: "true"
+env:
+  postgresUri: jdbc:postgresql://postgresql:5432/sausage-store
+  postgresUser: pg_root
+  postgresPassword: test_pg
+  reportPath: /logs/reports
+  logPath: /logs
+service:
+  port: 8080
+revisionHistoryLimit: 15
+replicas: 1
+strategy:
+### Опишите стратегию RollingUpdate для бэкенда
+image: verhanasta/sausage-backend:latest
+imagePullPolicy: Always
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
   limits:
-    cpu: 1
-  livenessProbe:
-    httpGet:
-      path: /health
-      port: 8080
-    initialDelaySeconds: 60
-    periodSeconds: 20
-  hpa:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 3
-    cpuUtilizationPercentage: 60
-### Опишите значения для backend-report
-### Приложение должно использовать стратегию Recreate
-### Приложение использует переменную PORT - порт, на котором оно запустится и DB - Uri-подключение к mongodb. 
-### DB положите в Secret, PORT в ConfigMap
-### Опишите HPA для backend-report
-
-### Опишите необходимые переменные для развертывания PostgresQL в кластере Kubernetes
-postgres:
-  env:
-    POSTGRESQL_INITDB_ROOT_USERNAME: pg_root
-    POSTGRESQL_INITDB_ROOT_PASSWORD: test_pg
-    POSTGRESQL_INITDB_ROOT_DB: sausage_store
-    containerPort: "5432"
-
-infra:
-  mongodb:
-    env:
-      MONGO_INITDB_ROOT_USERNAME: mongo_root
-      MONGO_INITDB_ROOT_PASSWORD: test_mongo
-    containerPort: "27017"
+    memory: "512Mi"
+    cpu: "1"
+containerPort: 8080
+livenessProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 15
+  timeoutSeconds: 5
+  failureThreshold: 3
+### Опишите LivenessProbe для бэкенда
+vpa:
+  enabled: true
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        minAllowed:
+          cpu: "150m"
+          memory: "256Mi"
+        maxAllowed:
+          cpu: "1"
+          memory: "512Mi"
