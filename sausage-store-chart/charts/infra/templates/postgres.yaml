@@ -22,7 +22,7 @@ spec:
             - configMapRef:
                 name: postgres-conf
           ports:
-            - containerPort: {{ .Values.infra.postgres.containerPort }}
+            - containerPort: {{ .Values.infra.postgresql.containerPort }}
           resources:
             requests:
               memory: "128Mi"
